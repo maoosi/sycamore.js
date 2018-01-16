@@ -9,10 +9,45 @@
     <title>sycamore.js</title>
 
     <style media="screen">
+        @keyframes typing-anim {
+            0% {
+                opacity: 1;
+                transform: translateY(0%);
+            }
+            50% {
+                opacity: 0;
+                transform: translateY(50%);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0%);
+            }
+        }
+
         body {
             font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            font-size: 16px;
         }
+
         main {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #start-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            font-size: 1.25em;
+            padding: 0.35em 1em;
+            cursor: pointer;
+        }
+
+        .overlay {
+            width: 100%;
             position: absolute;
             top: 50%;
             left: 50%;
@@ -20,17 +55,76 @@
             text-align: center;
         }
 
-        main #start-button {
-            font-size: 1.25rem;
-            padding: 0.35em 1em;
+        .bubble {
+            display: inline-block;
+            padding: 0.5em;
+            border: 1px solid rgba(0,0,0,0.2);
+            box-shadow: 0.25em 0.25em 0.5em rgba(0,0,0,0.2);
+            border-radius: 0.25em;
+            opacity: 0;
+            transform: translateY(100%);
+            transition: 500ms;
+            font-size: 1.5em;
+            color: white;
+            user-select: none;
+        }
+
+        .bubble.active {
+            opacity: 1;
+            transform: translateY(0%);
+            user-select: auto;
+        }
+
+        .bubble.typing {
+            background-color: #4F84C4;
+        }
+
+        .bubble.typing span:nth-child(1) {
+            animation: typing-anim 1s infinite;
+        }
+
+        .bubble.typing span:nth-child(2) {
+            animation: typing-anim 1s 0.25s infinite;
+        }
+
+        .bubble.typing span:nth-child(3) {
+            animation: typing-anim 1s 0.5s infinite;
+        }
+
+        .bubble.bot-text {
+            background-color: #4F84C4;
+            margin: 0 0 0.75em 0;
+        }
+
+        .bubble.answer {
+            background-color: #D2691E;
+            margin: 0 0.5em;
             cursor: pointer;
+        }
+
+        .hidden {
+            opacity: 0;
+            display: none;
         }
     </style>
 
 </head>
 <body>
     <main>
-        <p>Open your developer console, then hit start</p>
+        <div class="overlay">
+            <div class="bubble typing">
+                <span>&bull;</span>
+                <span>&bull;</span>
+                <span>&bull;</span>
+            </div>
+        </div>
+
+        <div class="overlay">
+            <div class="bubble bot-text"></div>
+            <br/>
+            <div class="answers"></div>
+        </div>
+
         <button id="start-button">START</button>
     </main>
 
@@ -106,23 +200,52 @@
         ]
 
         const options = {
-            speed: 7,
-            delay: 1750
+            speed: 6,
+            delayMinMax: [1500, 3000]
         }
+
+        const typing = document.querySelector('.typing')
+        const botText = document.querySelector('.bot-text')
+        const startBtn = document.querySelector('#start-button')
+        const answers = document.querySelector('.answers')
 
         const sycamore = new Sycamore(data, options)
 
         sycamore.on('typing', (wait) => {
             console.log(`%cTyping for ${wait}ms...`, 'color: blue')
+            typing.classList.add('active')
         })
 
         // when the question is asked, wait 2 seconds and call the answer() method with the first answer
         sycamore.on('question', (obj) => {
             console.log(`%c${obj.question}`, 'color: red')
-            setTimeout(() => {
-                console.log(`%c${obj.answers[0].text}`, 'color: green')
-                sycamore.answer(obj.answers[0])
-            }, 2000)
+            typing.classList.remove('active')
+
+            botText.innerHTML = obj.question
+            botText.classList.add('active')
+
+            let delay = 250
+
+            obj.answers.forEach((answer) => {
+                let answerElm = document.createElement('div')
+                answerElm.classList.add('bubble')
+                answerElm.classList.add('answer')
+                answerElm.innerHTML = answer.text
+
+                answers.appendChild(answerElm)
+
+                setTimeout(() => {
+                    answerElm.classList.add('active')
+                }, delay)
+
+                answerElm.addEventListener('click', () => {
+                    sycamore.answer(answer)
+                    answers.innerHTML = ''
+                    botText.classList.remove('active')
+                })
+
+                delay = delay + 250
+            })
         })
 
         sycamore.on('answered', (qa) => {
@@ -145,8 +268,9 @@
             console.log(data)
         })
 
-        document.querySelector('#start-button').addEventListener('click', () => {
+        startBtn.addEventListener('click', () => {
             sycamore.init()
+            startBtn.classList.add('hidden')
         })
 
         function catCallback() {
